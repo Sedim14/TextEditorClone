@@ -16,6 +16,15 @@ namespace TextEditorClone
         TabPage selectedTab = null;
         bool isSaved = false;
 
+        Dictionary<string, string> emojis = new Dictionary<string, string>
+        {
+            { ":D", "😄" },
+            { ":|", "😠" },
+            { ">:c", "👍" },
+            { ":,c", "😢" },
+            { ":3", "😺" }
+        };              
+
         public Form1()
         {
             InitializeComponent();
@@ -36,6 +45,17 @@ namespace TextEditorClone
         {
             if (e.KeyCode == Keys.Enter)
                 textBox1.Text.Trim();
+        }
+
+        private void checkForEmojis()
+        {
+            foreach (var entry in emojis)
+            {
+                string key = entry.Key;
+                string value = entry.Value;
+                string newText = textBox1.Text.Replace(key, value);
+                textBox1.Text = newText;
+            }
         }
         
         private void updateFileStatus(TabPage fileTab)
@@ -202,6 +222,8 @@ namespace TextEditorClone
        
         private void textUpdated(object sender, EventArgs e)
         {
+            //Check if any emoji has been written
+            checkForEmojis();
             //Write current content to the tmp file
             updateTempFile(selectedTab);
             //compare the current tmp file to the og file
