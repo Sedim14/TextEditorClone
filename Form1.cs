@@ -43,8 +43,30 @@ namespace TextEditorClone
         //Windos forms methods
         private void textBox1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Enter)
-                textBox1.Text.Trim();
+            if (e.KeyCode != Keys.None)
+            {
+                if (e.KeyCode == Keys.Enter)
+                    textBox1.Text.Trim();
+                else
+                {
+                    //Check if any emoji has been written
+                    checkForEmojis();
+                    //Write current content to the tmp file
+                    updateTempFile(selectedTab);
+                    //compare the current tmp file to the og file
+                    updateFileStatus(selectedTab);
+                }
+            } 
+        }
+
+        private void textBox1_KeyDown(object sender, KeyPressEventArgs e)
+        {
+            //Check if any emoji has been written
+            checkForEmojis();
+            //Write current content to the tmp file
+            updateTempFile(selectedTab);
+            //compare the current tmp file to the og file
+            updateFileStatus(selectedTab);
         }
 
         private void checkForEmojis()
@@ -67,8 +89,40 @@ namespace TextEditorClone
 
         }
 
-        private void updateSelectedTab(object sender, EventArgs e)
+        private void createNewFileTab(object sender, EventArgs e)
         {
+            addNewTab();
+        }
+
+        private void addNewTab()
+        {
+            string newTabName = "New" + (fileTabConrol.TabPages.Count + 1);
+            fileTabConrol.TabPages.Add(newTabName); //Add bew tab
+            createTempFile(fileTabConrol.TabPages[fileTabConrol.TabPages.Count - 1]);//crea el archivo temporal del nuevo tab
+        }
+
+        private void updateSelectedTab(object sender, EventArgs e) //Solo se manda a llamar entre tabs existentes, no en uno que se acaba de crear
+        {
+
+            if(fileTabConrol.SelectedTab != null)
+            {
+                // Actualizamos la informacion en ek archivo tmp antes de movernos al tab del archivo seleccionado
+                updateTempFile(selectedTab);
+                //Accedemos al nuevo tab
+                selectedTab = fileTabConrol.SelectedTab;
+                textBox1.Text = string.Empty; // Clear all text in textbox
+                // Look for the temp file of the current selected tab and put it in the textbox
+                string tmpName = "/tmp" + selectedTab.Text + ".txt";
+                string tmpPath = AppDomain.CurrentDomain.BaseDirectory + tmpName;
+                if (File.Exists(tmpPath))
+                {
+                    textBox1.Text = File.ReadAllText(tmpPath);
+                    updateFileStatus(selectedTab);
+                }
+            }
+
+
+            /*
             TabPage previousTab = selectedTab;
             selectedTab = fileTabConrol.SelectedTab;
 
@@ -84,7 +138,8 @@ namespace TextEditorClone
                 {
                     textBox1.Text = File.ReadAllText(tmpPath);
                 }
-            }
+            }*/
+
         }
 
         //File management
@@ -219,20 +274,11 @@ namespace TextEditorClone
             deleteTempFiles();
         }
 
-       
-        private void textUpdated(object sender, EventArgs e)
-        {
-            //Check if any emoji has been written
-            checkForEmojis();
-            //Write current content to the tmp file
-            updateTempFile(selectedTab);
-            //compare the current tmp file to the og file
-            updateFileStatus(selectedTab);
-        }
-
         private void clickSaveAs(object sender, EventArgs e)
         {
             saveFileAs();
         }
+
+       
     }
 }
