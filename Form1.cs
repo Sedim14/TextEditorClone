@@ -279,6 +279,38 @@ namespace TextEditorClone
             saveFileAs();
         }
 
-       
+        private void fileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*";
+            openFileDialog.Title = "Seleccionar un archivo de texto";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+
+                string fileContent = File.ReadAllText(openFileDialog.FileName);
+                string fileName = Path.GetFileName(openFileDialog.FileName);
+                textBox1.Text = fileContent;
+                selectedTab.Text = fileName;
+                updateFileStatus(selectedTab);
+            }
+            else
+            {
+                MessageBox.Show("Archivo invalido");
+            }
+
+
+
+        }
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
