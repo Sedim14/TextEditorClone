@@ -15,6 +15,7 @@ namespace TextEditorClone
     {
         TabPage selectedTab = null;
         bool isSaved = false;
+        Dictionary<TabPage, string> filePaths = new Dictionary<TabPage, string>();
 
         Dictionary<string, string> emojis = new Dictionary<string, string>
         {
@@ -194,31 +195,25 @@ namespace TextEditorClone
 
         private void saveFileAs() //Funciona correctamente-completa
         {
-            //Accedemos a la routa del archivo temporal
-            string tmpName = "/tmp" + selectedTab.Text + ".txt";
-            string tmpPath = AppDomain.CurrentDomain.BaseDirectory + tmpName;
-
-
-            //Open save dile dialog and save
             SaveFileDialog saveFileDialog = new SaveFileDialog();
             saveFileDialog.AddExtension = true;
             saveFileDialog.Filter = "Archivo de texto|*.txt";
+
             DialogResult res = saveFileDialog.ShowDialog();
-            if (res == DialogResult.OK) //If it was saved correctly
+            if (res == DialogResult.OK)
             {
-                File.WriteAllText(saveFileDialog.FileName, textBox1.Text);
-                // Get the file name and display it
                 string fileName = Path.GetFileName(saveFileDialog.FileName);
-                MessageBox.Show("File saved succesfully: " + fileName);
                 selectedTab.Text = fileName;
-                //Renombramos el archivo temporal al nombre que se guardo
-                string newTmpName = "/tmp" + fileName + ".txt";
-                string newTmpPath = AppDomain.CurrentDomain.BaseDirectory + newTmpName;
-                File.Move(tmpPath, newTmpPath);
-                //Muestra el estado del archivo en el forms
+
+                // Guardar la ruta del archivo en el diccionario
+                filePaths[selectedTab] = saveFileDialog.FileName;
+
+                File.WriteAllText(saveFileDialog.FileName, textBox1.Text);
+                MessageBox.Show("Archivo guardado exitosamente como: " + fileName);
+
                 updateFileStatus(selectedTab);
             }
-                
+
         }
 
 
@@ -292,11 +287,17 @@ namespace TextEditorClone
 
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
+                string filePath = openFileDialog.FileName;
+                string fileName = Path.GetFileName(filePath);
 
-                string fileContent = File.ReadAllText(openFileDialog.FileName);
-                string fileName = Path.GetFileName(openFileDialog.FileName);
-                textBox1.Text = fileContent;
+                // Carga el contenido del archivo en el TextBox
+                textBox1.Text = File.ReadAllText(filePath);
+
+                // Actualiza el nombre de la pestaña y la ruta del archivo en el diccionario
                 selectedTab.Text = fileName;
+                filePaths[selectedTab] = filePath; // Aquí se actualiza la ruta del archivo
+
+                // Actualiza el estado del archivo en la interfaz
                 updateFileStatus(selectedTab);
             }
             else
@@ -304,13 +305,106 @@ namespace TextEditorClone
                 MessageBox.Show("Archivo invalido");
             }
 
-
-
         }
 
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            string fileName = selectedTab.Text;
 
+            if (fileName.StartsWith("New"))
+            {
+                saveFileAs();
+            }
+            else
+            {
+                // Obtén la ruta asociada a la pestaña seleccionada
+                string filePath;
+                if (filePaths.TryGetValue(selectedTab, out filePath) && File.Exists(filePath))
+                {
+                    // Guarda el contenido del TextBox en el archivo existente
+                    File.WriteAllText(filePath, textBox1.Text);
+
+                    updateTempFile(selectedTab);
+                    updateFileStatus(selectedTab);
+                    MessageBox.Show("Archivo guardado exitosamente.");
+                }
+                else
+                {
+                    saveFileAs();
+                }
+            }
+        }
+
+        private void closeAllToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Obtén la pestaña activa actual
+            TabPage activeTab = fileTabConrol.SelectedTab;
+
+            if (activeTab != null)
+            {
+                // Verifica si hay cambios no guardados
+                if (!isSaved)
+                {
+                    // Pregunta al usuario si desea guardar los cambios antes de cerrar la pestaña
+                    DialogResult result = MessageBox.Show("Hay cambios no guardados. ¿Desea guardarlos antes de cerrar?", "Confirmar", MessageBoxButtons.YesNoCancel);
+
+                    if (result == DialogResult.Cancel)
+                    {
+                        // Si el usuario elige Cancelar, no cierra la pestaña
+                        return;
+                    }
+                    else if (result == DialogResult.Yes)
+                    {
+                        // Si el usuario elige Sí, guarda los cambios
+                        saveToolStripMenuItem_Click(sender, e);
+                    }
+                }
+
+                // Elimina la pestaña activa
+                fileTabConrol.TabPages.Remove(activeTab);
+
+                // Opcional: Actualiza el estado de los archivos y pestañas después de cerrar
+                if (fileTabConrol.TabPages.Count > 0)
+                {
+                    // Si hay otras pestañas, selecciona la primera
+                    fileTabConrol.SelectedTab = fileTabConrol.TabPages[0];
+                }
+            }
+        }
+
+        private void toolStripButton1_Click(object sender, EventArgs e)
+        {
+            this.createNewFileTab(sender, e);
+        }
+
+        private void toolStripButton2_Click(object sender, EventArgs e)
+        {
+            this.openToolStripMenuItem_Click(sender,e);
+        }
+
+        private void toolStripButton3_Click(object sender, EventArgs e)
+        {
+            this.saveToolStripMenuItem_Click((object)sender, e);
+        }
+
+        private void toolStripButton4_Click(object sender, EventArgs e)
+        {
+            this.clickSaveAs(sender, e);
+        }
+
+        private void toolStripButton5_Click(object sender, EventArgs e)
+        {
+            this.closeToolStripMenuItem_Click(sender,e);
+        }
+
+        private void toolStripButton6_Click(object sender, EventArgs e)
+        {
+            this.closeAllToolStripMenuItem_Click(sender,e);
         }
     }
 }
