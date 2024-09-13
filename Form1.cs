@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace TextEditorClone
 {
@@ -17,14 +18,16 @@ namespace TextEditorClone
         bool isSaved = false;
         Dictionary<TabPage, string> filePaths = new Dictionary<TabPage, string>();
 
-        Dictionary<string, string> emojis = new Dictionary<string, string>
+        Dictionary<string, Image> emojis = new Dictionary<string, Image>
         {
-            { ":D", "😄" },
-            { ":|", "😠" },
-            { ">:c", "👍" },
-            { ":,c", "😢" },
-            { ":3", "😺" }
-        };              
+            { ":D", Properties.Resources.smile },
+            { ":|", Properties.Resources.confused },
+            { ">:c", Properties.Resources.angry },
+            { ":,c", Properties.Resources.sad },
+            { ":3", Properties.Resources.cat_face }
+        };
+
+        Dictionary<Image, string> emojiToText = new Dictionary<Image, string>();
 
         public Form1()
         {
@@ -32,6 +35,12 @@ namespace TextEditorClone
             selectedTab = fileTabConrol.TabPages[0]; //1st tab will always be selected everytime the forms load
             createTempFile(selectedTab);
             updateFileStatus(selectedTab);
+
+            // Invertir el diccionario emojis para facilitar el reemplazo al guardar
+            foreach (var entry in emojis)
+            {
+                emojiToText[entry.Value] = entry.Key;
+            }
         }
 
   
@@ -47,7 +56,7 @@ namespace TextEditorClone
             if (e.KeyCode != Keys.None)
             {
                 if (e.KeyCode == Keys.Enter)
-                    textBox1.Text.Trim();
+                    richTextBox1.Text.Trim();
                 else
                 {
                     //Check if any emoji has been written
@@ -74,13 +83,43 @@ namespace TextEditorClone
         {
             foreach (var entry in emojis)
             {
-                string key = entry.Key;
-                string value = entry.Value;
-                string newText = textBox1.Text.Replace(key, value);
-                textBox1.Text = newText;
+                string key = entry.Key;  // El emoji en formato de texto (e.g., ":D")
+                Image value = entry.Value;  // La imagen correspondiente
+
+                int index = richTextBox1.Text.IndexOf(key);
+                while (index != -1)
+                {
+                    // Selecciona el texto del emoji
+                    richTextBox1.Select(index, key.Length);
+
+                    // Redimensiona la imagen al tamaño del texto
+                    Image resizedEmoji = ResizeImage(value, (int)richTextBox1.Font.Size);
+
+                    // Reemplaza el texto por la imagen redimensionada
+                    Clipboard.SetImage(resizedEmoji);  // Copia la imagen redimensionada al portapapeles
+                    richTextBox1.Paste();  // Pega la imagen en la posición seleccionada
+
+                    // Busca la siguiente ocurrencia
+                    index = richTextBox1.Text.IndexOf(key, index + 1);
+                }
             }
         }
+
+        private Image ResizeImage(Image imgToResize, int size)
+        {
+            int newWidth = size+5; // Ancho igual al tamaño de la fuente
+            int newHeight = size+5; // Alto igual al tamaño de la fuente
+
+            Bitmap resizedImage = new Bitmap(newWidth, newHeight);
+            using (Graphics g = Graphics.FromImage(resizedImage))
+            {
+                g.DrawImage(imgToResize, 0, 0, newWidth, newHeight);
+            }
+            return resizedImage;
+        }
+
         
+
         private void updateFileStatus(TabPage fileTab)
         {
             //Show name of the current file
@@ -111,13 +150,13 @@ namespace TextEditorClone
                 updateTempFile(selectedTab);
                 //Accedemos al nuevo tab
                 selectedTab = fileTabConrol.SelectedTab;
-                textBox1.Text = string.Empty; // Clear all text in textbox
+                richTextBox1.Text = string.Empty; // Clear all text in textbox
                 // Look for the temp file of the current selected tab and put it in the textbox
                 string tmpName = "/tmp" + selectedTab.Text + ".txt";
                 string tmpPath = AppDomain.CurrentDomain.BaseDirectory + tmpName;
                 if (File.Exists(tmpPath))
                 {
-                    textBox1.Text = File.ReadAllText(tmpPath);
+                    richTextBox1.Text = File.ReadAllText(tmpPath);
                     updateFileStatus(selectedTab);
                 }
             }
@@ -193,6 +232,34 @@ namespace TextEditorClone
             return null;
         }
 
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string fileName = selectedTab.Text;
+
+            if (fileName.StartsWith("New"))
+            {
+                saveFileAs();
+            }
+            else
+            {
+                // Obtén la ruta asociada a la pestaña seleccionada
+                string filePath;
+                if (filePaths.TryGetValue(selectedTab, out filePath) && File.Exists(filePath))
+                {
+                    // Guarda el contenido del TextBox en el archivo existente
+                    File.WriteAllText(filePath, richTextBox1.Text);
+
+                    updateTempFile(selectedTab);
+                    updateFileStatus(selectedTab);
+                    MessageBox.Show("Archivo guardado exitosamente.");
+                }
+                else
+                {
+                    saveFileAs();
+                }
+            }
+        }
+
         private void saveFileAs() //Funciona correctamente-completa
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog();
@@ -208,7 +275,7 @@ namespace TextEditorClone
                 // Guardar la ruta del archivo en el diccionario
                 filePaths[selectedTab] = saveFileDialog.FileName;
 
-                File.WriteAllText(saveFileDialog.FileName, textBox1.Text);
+                File.WriteAllText(saveFileDialog.FileName, richTextBox1.Text);
                 MessageBox.Show("Archivo guardado exitosamente como: " + fileName);
 
                 updateFileStatus(selectedTab);
@@ -231,7 +298,7 @@ namespace TextEditorClone
             string tmpName = "/tmp" + fileTab.Text + ".txt";
             string tmpPath = AppDomain.CurrentDomain.BaseDirectory + tmpName;
             File.WriteAllText(tmpPath, string.Empty);//Emptr current content of file
-            File.WriteAllText(tmpPath, textBox1.Text);//Write new content on the textbox
+            File.WriteAllText(tmpPath, richTextBox1.Text);//Write new content on the textbox
         }
 
         private void deleteTempFiles()//Funciona correctamente-completa
@@ -291,7 +358,7 @@ namespace TextEditorClone
                 string fileName = Path.GetFileName(filePath);
 
                 // Carga el contenido del archivo en el TextBox
-                textBox1.Text = File.ReadAllText(filePath);
+                richTextBox1.Text = File.ReadAllText(filePath);
 
                 // Actualiza el nombre de la pestaña y la ruta del archivo en el diccionario
                 selectedTab.Text = fileName;
@@ -307,33 +374,7 @@ namespace TextEditorClone
 
         }
 
-        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            string fileName = selectedTab.Text;
-
-            if (fileName.StartsWith("New"))
-            {
-                saveFileAs();
-            }
-            else
-            {
-                // Obtén la ruta asociada a la pestaña seleccionada
-                string filePath;
-                if (filePaths.TryGetValue(selectedTab, out filePath) && File.Exists(filePath))
-                {
-                    // Guarda el contenido del TextBox en el archivo existente
-                    File.WriteAllText(filePath, textBox1.Text);
-
-                    updateTempFile(selectedTab);
-                    updateFileStatus(selectedTab);
-                    MessageBox.Show("Archivo guardado exitosamente.");
-                }
-                else
-                {
-                    saveFileAs();
-                }
-            }
-        }
+        
 
         private void closeAllToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -406,5 +447,35 @@ namespace TextEditorClone
         {
             this.closeAllToolStripMenuItem_Click(sender,e);
         }
+
+        private void richTextBox1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.None)
+            {
+                if (e.KeyCode == Keys.Enter)
+                    richTextBox1.Text = richTextBox1.Text.Trim();
+                else
+                {
+                    //Check if any emoji has been written
+                    checkForEmojis();
+                    //Write current content to the tmp file
+                    updateTempFile(selectedTab);
+                    //compare the current tmp file to the og file
+                    updateFileStatus(selectedTab);
+                }
+            }
+        }
+
+        private void richTextBox1_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            //Trigger emoji replacement after every key press
+            checkForEmojis();
+            //Write current content to the tmp file
+            updateTempFile(selectedTab);
+            //compare the current tmp file to the original file
+            updateFileStatus(selectedTab);
+        }
+
+        
     }
 }
